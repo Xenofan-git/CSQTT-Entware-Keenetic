@@ -470,17 +470,19 @@ jobs:
           assert (target/'opt/lib/pkgconfig/epoxy.pc').exists()
           PY
           export TARGET TC GITHUB_HOME
-          mkdir -p "$TARGET/opt/include/EGL" "$TARGET/opt/include/GL" "$TARGET/opt/include/GLES2" "$TARGET/opt/include/GLES3"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/EGL-Registry/main/api/EGL/egl.h -o "$TARGET/opt/include/EGL/egl.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/EGL-Registry/main/api/EGL/eglext.h -o "$TARGET/opt/include/EGL/eglext.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/EGL-Registry/main/api/EGL/eglplatform.h -o "$TARGET/opt/include/EGL/eglplatform.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GL/include/GL/gl.h -o "$TARGET/opt/include/GL/gl.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GL/include/GL/glext.h -o "$TARGET/opt/include/GL/glext.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GL/include/GL/glcorearb.h -o "$TARGET/opt/include/GL/glcorearb.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GLES2/include/GLES2/gl2.h -o "$TARGET/opt/include/GLES2/gl2.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GLES2/include/GLES2/gl2ext.h -o "$TARGET/opt/include/GLES2/gl2ext.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GLES3/include/GLES3/gl3.h -o "$TARGET/opt/include/GLES3/gl3.h"
-          curl -fL --retry 5 https://raw.githubusercontent.com/KhronosGroup/OpenGL-Headers/main/GLES3/include/GLES3/gl3platform.h -o "$TARGET/opt/include/GLES3/gl3platform.h"
+          # Epoxy needs Khronos EGL/GL headers; libglvnd-dev provides the complete,
+          # internally consistent header set (EGL/GL/KHR) without target-specific binaries.
+          apt-get update
+          apt-get download libglvnd-dev
+          GLVND_DEB="$(ls -1 libglvnd-dev_*.deb | head -n1)"
+          rm -rf /tmp/glvnd-dev
+          dpkg-deb -x "$GLVND_DEB" /tmp/glvnd-dev
+          cp -a /tmp/glvnd-dev/usr/include/EGL "$TARGET/opt/include/"
+          cp -a /tmp/glvnd-dev/usr/include/GL "$TARGET/opt/include/"
+          cp -a /tmp/glvnd-dev/usr/include/KHR "$TARGET/opt/include/"
+          test -f "$TARGET/opt/include/EGL/eglplatform.h"
+          test -f "$TARGET/opt/include/GL/gl.h"
+          test -f "$TARGET/opt/include/KHR/khrplatform.h"
           python3 /tmp/build_epoxy.py
           GLIB_PC="$(find "$TARGET" -type f -name 'glib-2.0.pc' -print -quit)"
           GLIB_PC_DIR="$(dirname "$GLIB_PC")"
