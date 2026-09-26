@@ -522,7 +522,6 @@ jobs:
           env['PKG_CONFIG_SYSROOT_DIR']=str(target)
           env['PKG_CONFIG_LIBDIR']=f"{target}/opt/lib/pkgconfig:{target}/usr/lib/pkgconfig:{target}/usr/share/pkgconfig"
           build='/tmp/build-libsoup-arm64'
-          cross='/tmp/meson-cross-arm64.ini'
           opts=['-Dtests=false','-Dvapi=disabled','-Ddocs=disabled','-Dintrospection=disabled','-Dsysprof=disabled','-Dgssapi=disabled','-Dntlm=disabled','-Dbrotli=disabled','-Dtls_check=false']
           subprocess.run(['python3','-m','mesonbuild.mesonmain','setup',build,str(soup_root),'--cross-file',str(cross),'--prefix','/opt','--libdir','lib',*opts],env=env,check=True)
           subprocess.run(['python3','-m','mesonbuild.mesonmain','compile','-C',build,'-j','2'],env=env,check=True)
