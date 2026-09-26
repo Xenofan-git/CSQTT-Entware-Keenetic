@@ -497,14 +497,34 @@ jobs:
           with tarfile.open(soup_tar,'r:*') as tf: tf.extractall(soup_src)
           meson_main=next(meson_src.rglob('mesonbuild/mesonmain.py'))
           soup_root=next(p for p in soup_src.iterdir() if p.is_dir())
-          target=Path(os.environ['TARGET'])
+          target=Path(os.environ['TARGET']); tc=Path(os.environ['TC'])
+          cross=Path(root/'meson-cross-arm64.ini')
+          cross.write_text(f"""[binaries]
+          c = '{os.environ.get('GITHUB_HOME','/github/home')}/llvm/bin/clang'
+          cpp = '{os.environ.get('GITHUB_HOME','/github/home')}/llvm/bin/clang++'
+          ar = '{tc}/bin/aarch64-openwrt-linux-gnu-ar'
+          strip = '{tc}/bin/aarch64-openwrt-linux-gnu-strip'
+          pkgconfig = 'pkg-config'
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'cortex-a53'
+          endian = 'little'
+          [properties]
+          sys_root = '{target}'
+          [built-in options]
+          c_args = ['--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53','-isystem','{tc}/include','-isystem','{target}/usr/include','-isystem','{target}/opt/include']
+          cpp_args = ['-nostdinc++','--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0/aarch64-openwrt-linux-gnu','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0/backward','-isystem','{tc}/include','-isystem','{target}/usr/include','-isystem','{target}/opt/include']
+          c_link_args = ['--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53']
+          cpp_link_args = ['--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53']
+          """)
           env=os.environ.copy(); env['PYTHONPATH']=str(meson_main.parent.parent)
           env['PKG_CONFIG_SYSROOT_DIR']=str(target)
           env['PKG_CONFIG_LIBDIR']=f"{target}/opt/lib/pkgconfig:{target}/usr/lib/pkgconfig:{target}/usr/share/pkgconfig"
           build='/tmp/build-libsoup-arm64'
           cross='/tmp/meson-cross-arm64.ini'
           opts=['-Dtests=false','-Dvapi=disabled','-Ddocs=disabled','-Dintrospection=disabled','-Dsysprof=disabled','-Dgssapi=disabled','-Dntlm=disabled','-Dbrotli=disabled','-Dtls_check=false']
-          subprocess.run(['python3','-m','mesonbuild.mesonmain','setup',build,str(soup_root),'--cross-file',cross,'--prefix','/opt','--libdir','lib',*opts],env=env,check=True)
+          subprocess.run(['python3','-m','mesonbuild.mesonmain','setup',build,str(soup_root),'--cross-file',str(cross),'--prefix','/opt','--libdir','lib',*opts],env=env,check=True)
           subprocess.run(['python3','-m','mesonbuild.mesonmain','compile','-C',build,'-j','2'],env=env,check=True)
           env['DESTDIR']=str(target)
           subprocess.run(['python3','-m','mesonbuild.mesonmain','install','-C',build],env=env,check=True)
