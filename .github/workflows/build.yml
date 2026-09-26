@@ -472,6 +472,13 @@ jobs:
           assert (target/'opt/lib/pkgconfig/epoxy.pc').exists()
           PY
           export TARGET TC GITHUB_HOME
+          # Entware ships runtime-only LibGcrypt/GpgError objects. WPE's CMake finder
+          # expects development linker names; expose the same ABI-compatible libraries under
+          # their standard -dev names without importing a foreign binary.
+          ln -sf libgcrypt.so.20.6.0 "$TARGET/opt/lib/libgcrypt.so"
+          ln -sf libgpg-error.so.0.41.1 "$TARGET/opt/lib/libgpg-error.so"
+          test -e "$TARGET/opt/lib/libgcrypt.so"
+          test -e "$TARGET/opt/lib/libgpg-error.so"
           # Epoxy needs Khronos EGL/GL headers; libglvnd-dev provides the complete,
           # internally consistent header set (EGL/GL/KHR) without target-specific binaries.
           apt-get update
