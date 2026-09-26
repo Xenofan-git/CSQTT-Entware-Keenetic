@@ -479,19 +479,40 @@ jobs:
           ln -sf libgpg-error.so.0.41.1 "$TARGET/opt/lib/libgpg-error.so"
           test -e "$TARGET/opt/lib/libgcrypt.so"
           test -e "$TARGET/opt/lib/libgpg-error.so"
-          # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 so the
-          # target gets matching headers, pkg-config metadata and ARM64 library ABI.
-          MESON_ROOT="$(find /tmp/epoxy-build/meson-src -type f -path '*/mesonbuild/mesonmain.py' -print -quit | sed 's#/mesonbuild/mesonmain.py##')"
-          SOUP_ROOT=/tmp/libsoup-3.0.8
-          rm -rf "$SOUP_ROOT" /tmp/build-libsoup-arm64
-          curl -fL --retry 5 https://download.gnome.org/sources/libsoup/3.0/libsoup-3.0.8.tar.xz -o /tmp/libsoup-3.0.8.tar.xz
-          tar -xf /tmp/libsoup-3.0.8.tar.xz -C /tmp
-          test -f "$SOUP_ROOT/meson.build"
-          PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain setup /tmp/build-libsoup-arm64 "$SOUP_ROOT" --cross-file /tmp/meson-cross-arm64.ini --prefix /opt --libdir lib -Dtests=false -Dvapi=disabled -Ddocs=disabled -Dintrospection=disabled -Dsysprof=disabled -Dgssapi=disabled -Dntlm=disabled -Dbrotli=disabled -Dtls_check=false
-          PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain compile -C /tmp/build-libsoup-arm64 -j 2
-          DESTDIR="$TARGET" PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain install -C /tmp/build-libsoup-arm64
-          test -f "$TARGET/opt/include/libsoup-3.0/libsoup/soup.h"
-          test -f "$TARGET/opt/lib/pkgconfig/libsoup-3.0.pc"
+          # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 with its
+          # own Meson source tree so this block is independent of temporary paths.
+          cat > /tmp/build_libsoup.py <<'PY'
+          import os, shutil, subprocess, tarfile, urllib.request
+          from pathlib import Path
+          root=Path('/tmp/libsoup-build')
+          if root.exists(): shutil.rmtree(root)
+          root.mkdir()
+          meson_tar=root/'meson.tar.gz'
+          soup_tar=root/'libsoup.tar.xz'
+          urllib.request.urlretrieve('https://github.com/mesonbuild/meson/releases/download/1.5.2/meson-1.5.2.tar.gz', meson_tar)
+          urllib.request.urlretrieve('https://download.gnome.org/sources/libsoup/3.0/libsoup-3.0.8.tar.xz', soup_tar)
+          meson_src=root/'meson-src'; soup_src=root/'soup-src'
+          meson_src.mkdir(); soup_src.mkdir()
+          with tarfile.open(meson_tar,'r:gz') as tf: tf.extractall(meson_src)
+          with tarfile.open(soup_tar,'r:*') as tf: tf.extractall(soup_src)
+          meson_main=next(meson_src.rglob('mesonbuild/mesonmain.py'))
+          soup_root=next(p for p in soup_src.iterdir() if p.is_dir())
+          target=Path(os.environ['TARGET'])
+          env=os.environ.copy(); env['PYTHONPATH']=str(meson_main.parent.parent)
+          env['PKG_CONFIG_SYSROOT_DIR']=str(target)
+          env['PKG_CONFIG_LIBDIR']=f"{target}/opt/lib/pkgconfig:{target}/usr/lib/pkgconfig:{target}/usr/share/pkgconfig"
+          build='/tmp/build-libsoup-arm64'
+          cross='/tmp/meson-cross-arm64.ini'
+          opts=['-Dtests=false','-Dvapi=disabled','-Ddocs=disabled','-Dintrospection=disabled','-Dsysprof=disabled','-Dgssapi=disabled','-Dntlm=disabled','-Dbrotli=disabled','-Dtls_check=false']
+          subprocess.run(['python3','-m','mesonbuild.mesonmain','setup',build,str(soup_root),'--cross-file',cross,'--prefix','/opt','--libdir','lib',*opts],env=env,check=True)
+          subprocess.run(['python3','-m','mesonbuild.mesonmain','compile','-C',build,'-j','2'],env=env,check=True)
+          env['DESTDIR']=str(target)
+          subprocess.run(['python3','-m','mesonbuild.mesonmain','install','-C',build],env=env,check=True)
+          assert (target/'opt/lib/pkgconfig/libsoup-3.0.pc').exists()
+          assert any(target.rglob('soup.h'))
+          PY
+          export TARGET TC GITHUB_HOME
+          python3 /tmp/build_libsoup.py
           ln -sf libsoup-3.0.so.0.7.4 "$TARGET/opt/lib/libsoup-3.0.so"
           # Epoxy needs Khronos EGL/GL headers; libglvnd-dev provides the complete,
           # internally consistent header set (EGL/GL/KHR) without target-specific binaries.
