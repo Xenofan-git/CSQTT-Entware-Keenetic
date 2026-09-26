@@ -479,6 +479,8 @@ jobs:
           ln -sf libgpg-error.so.0.41.1 "$TARGET/opt/lib/libgpg-error.so"
           test -e "$TARGET/opt/lib/libgcrypt.so"
           test -e "$TARGET/opt/lib/libgpg-error.so"
+          printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libpcre2-8' 'Description: PCRE2 8-bit library' 'Version: 10.46' 'Libs: -L/opt/lib -lpcre2-8' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libpcre2-8.pc"
+          ln -sf libpcre2-8.so.0.12.0 "$TARGET/opt/lib/libpcre2-8.so"
           # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 with its
           # own Meson source tree so this block is independent of temporary paths.
           cat > /tmp/build_libsoup.py <<'PY'
