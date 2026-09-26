@@ -473,13 +473,16 @@ jobs:
           # Epoxy needs Khronos EGL/GL headers; libglvnd-dev provides the complete,
           # internally consistent header set (EGL/GL/KHR) without target-specific binaries.
           apt-get update
-          apt-get download libglvnd-dev
-          GLVND_DEB="$(ls -1 libglvnd-dev_*.deb | head -n1)"
-          rm -rf /tmp/glvnd-dev
-          dpkg-deb -x "$GLVND_DEB" /tmp/glvnd-dev
-          cp -a /tmp/glvnd-dev/usr/include/EGL "$TARGET/opt/include/"
-          cp -a /tmp/glvnd-dev/usr/include/GL "$TARGET/opt/include/"
-          cp -a /tmp/glvnd-dev/usr/include/KHR "$TARGET/opt/include/"
+          apt-get download libegl-dev libgl-dev libgles-dev libopengl-dev
+          rm -rf /tmp/gl-dev
+          mkdir -p /tmp/gl-dev
+          for deb in libegl-dev_*.deb libgl-dev_*.deb libgles-dev_*.deb libopengl-dev_*.deb; do
+            dpkg-deb -x "$deb" /tmp/gl-dev
+          done
+          cp -a /tmp/gl-dev/usr/include/EGL "$TARGET/opt/include/"
+          cp -a /tmp/gl-dev/usr/include/GL "$TARGET/opt/include/"
+          cp -a /tmp/gl-dev/usr/include/GLES* "$TARGET/opt/include/" 2>/dev/null || true
+          cp -a /tmp/gl-dev/usr/include/KHR "$TARGET/opt/include/"
           test -f "$TARGET/opt/include/EGL/eglplatform.h"
           test -f "$TARGET/opt/include/GL/gl.h"
           test -f "$TARGET/opt/include/KHR/khrplatform.h"
