@@ -479,6 +479,20 @@ jobs:
           ln -sf libgpg-error.so.0.41.1 "$TARGET/opt/lib/libgpg-error.so"
           test -e "$TARGET/opt/lib/libgcrypt.so"
           test -e "$TARGET/opt/lib/libgpg-error.so"
+          # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 so the
+          # target gets matching headers, pkg-config metadata and ARM64 library ABI.
+          MESON_ROOT="$(find /tmp/epoxy-build/meson-src -type f -path '*/mesonbuild/mesonmain.py' -print -quit | sed 's#/mesonbuild/mesonmain.py##')"
+          SOUP_ROOT=/tmp/libsoup-3.0.8
+          rm -rf "$SOUP_ROOT" /tmp/build-libsoup-arm64
+          curl -fL --retry 5 https://download.gnome.org/sources/libsoup/3.0/libsoup-3.0.8.tar.xz -o /tmp/libsoup-3.0.8.tar.xz
+          tar -xf /tmp/libsoup-3.0.8.tar.xz -C /tmp
+          test -f "$SOUP_ROOT/meson.build"
+          PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain setup /tmp/build-libsoup-arm64 "$SOUP_ROOT" --cross-file /tmp/meson-cross-arm64.ini --prefix /opt --libdir lib -Dtests=false -Dvapi=disabled -Ddocs=disabled -Dintrospection=disabled -Dsysprof=disabled -Dgssapi=disabled -Dntlm=disabled -Dbrotli=disabled -Dtls_check=false
+          PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain compile -C /tmp/build-libsoup-arm64 -j 2
+          DESTDIR="$TARGET" PYTHONPATH="$MESON_ROOT" python3 -m mesonbuild.mesonmain install -C /tmp/build-libsoup-arm64
+          test -f "$TARGET/opt/include/libsoup-3.0/libsoup/soup.h"
+          test -f "$TARGET/opt/lib/pkgconfig/libsoup-3.0.pc"
+          ln -sf libsoup-3.0.so.0.7.4 "$TARGET/opt/lib/libsoup-3.0.so"
           # Epoxy needs Khronos EGL/GL headers; libglvnd-dev provides the complete,
           # internally consistent header set (EGL/GL/KHR) without target-specific binaries.
           apt-get update
