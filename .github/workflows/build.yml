@@ -244,7 +244,7 @@ jobs:
                       k,v=line.split(': ',1); fields[k]=v
               if fields.get('Package') and fields.get('Filename'):
                   pkgs[fields['Package']]=fields
-          wanted={'glib2','glib2-dev','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
+          wanted={'glib2','glib2-dev','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','libnghttp2','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
           selected=set()
           queue=list(wanted)
           while queue:
@@ -480,6 +480,9 @@ jobs:
           test -e "$TARGET/opt/lib/libgcrypt.so"
           test -e "$TARGET/opt/lib/libgpg-error.so"
           printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libpcre2-8' 'Description: PCRE2 8-bit library' 'Version: 10.46' 'Libs: -L/opt/lib -lpcre2-8' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libpcre2-8.pc"
+          if [ ! -f "$TARGET/opt/lib/pkgconfig/libnghttp2.pc" ]; then
+            printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libnghttp2' 'Description: HTTP/2 protocol library' 'Version: 1.61.0' 'Libs: -L/opt/lib -lnghttp2' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libnghttp2.pc"
+          fi
           NGHTTP_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libnghttp2.so.*' -print -quit)"
           test -n "$NGHTTP_SO"
           ln -sf "$(basename "$NGHTTP_SO")" "$TARGET/opt/lib/libnghttp2.so"
