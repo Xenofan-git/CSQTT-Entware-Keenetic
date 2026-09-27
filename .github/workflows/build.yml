@@ -480,6 +480,17 @@ jobs:
           test -e "$TARGET/opt/lib/libgcrypt.so"
           test -e "$TARGET/opt/lib/libgpg-error.so"
           printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libpcre2-8' 'Description: PCRE2 8-bit library' 'Version: 10.46' 'Libs: -L/opt/lib -lpcre2-8' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libpcre2-8.pc"
+          if [ ! -f "$TARGET/opt/lib/pkgconfig/sqlite3.pc" ]; then
+            curl -fL --retry 5 https://www.sqlite.org/2024/sqlite-amalgamation-3450300.zip -o /tmp/sqlite.zip
+            rm -rf /tmp/sqlite-amalgamation
+            mkdir -p /tmp/sqlite-amalgamation
+            unzip -q /tmp/sqlite.zip -d /tmp/sqlite-amalgamation
+            SQLITE_SRC="$(find /tmp/sqlite-amalgamation -name sqlite3.h -print -quit)"
+            test -f "$SQLITE_SRC"
+            mkdir -p "$TARGET/opt/include"
+            cp "$SQLITE_SRC" "$TARGET/opt/include/sqlite3.h"
+            printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: sqlite3' 'Description: SQLite database engine' 'Version: 3.45.3' 'Libs: -L/opt/lib -lsqlite3' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/sqlite3.pc"
+          fi
           if [ ! -f "$TARGET/opt/lib/pkgconfig/libnghttp2.pc" ]; then
             printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libnghttp2' 'Description: HTTP/2 protocol library' 'Version: 1.61.0' 'Libs: -L/opt/lib -lnghttp2' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libnghttp2.pc"
           fi
