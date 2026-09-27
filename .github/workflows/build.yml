@@ -244,7 +244,7 @@ jobs:
                       k,v=line.split(': ',1); fields[k]=v
               if fields.get('Package') and fields.get('Filename'):
                   pkgs[fields['Package']]=fields
-          wanted={'glib2','glib2-dev','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','libnghttp2','libpsl','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
+          wanted={'glib2','glib2-dev','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','libnghttp2','libpsl','zlib','zlib-dev','gnutls','gnutls-dev','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
           selected=set()
           queue=list(wanted)
           while queue:
