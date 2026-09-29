@@ -483,11 +483,11 @@ jobs:
           # Entware ships GnuTLS runtime-only. Provide its public development headers and linker metadata.
           if [ ! -f "$TARGET/opt/lib/pkgconfig/gnutls.pc" ]; then
             apt-get update -qq
-            apt-get download libglib2.0-dev
-            GLIB_DEV_DEB="$(ls -1t libglib2.0-dev_*.deb | head -1)"
+            apt-get download libglib2.0-dev-bin
+            GLIB_TOOLS_DEB="$(ls -1t libglib2.0-dev-bin_*.deb | head -1)"
             rm -rf /tmp/glib-host-tools
             mkdir -p /tmp/glib-host-tools
-            dpkg-deb -x "$GLIB_DEV_DEB" /tmp/glib-host-tools
+            dpkg-deb -x "$GLIB_TOOLS_DEB" /tmp/glib-host-tools
             install -m 0755 /tmp/glib-host-tools/usr/bin/glib-mkenums /usr/local/bin/glib-mkenums
             apt-get download libgnutls28-dev
             GNUTLS_DEB="$(ls -1t libgnutls28-dev_*.deb | head -1)"
