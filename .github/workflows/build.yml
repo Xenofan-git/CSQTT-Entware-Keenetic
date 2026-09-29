@@ -489,6 +489,21 @@ jobs:
             mkdir -p /tmp/glib-host-tools
             dpkg-deb -x "$GLIB_TOOLS_DEB" /tmp/glib-host-tools
             install -m 0755 /tmp/glib-host-tools/usr/bin/glib-mkenums /usr/local/bin/glib-mkenums
+            install -m 0755 /tmp/glib-host-tools/usr/bin/glib-genmarshal /usr/local/bin/glib-genmarshal
+            # Entware does not ship GLib development headers. Use the matching
+            # AArch64 Debian development package only as a header/sysroot source;
+            # no Debian libraries are linked into the target.
+            apt-get download libglib2.0-dev:arm64
+            GLIB_DEV_DEB="$(ls -1t libglib2.0-dev_*_arm64.deb | head -1)"
+            rm -rf /tmp/glib-arm64-dev
+            mkdir -p /tmp/glib-arm64-dev
+            dpkg-deb -x "$GLIB_DEV_DEB" /tmp/glib-arm64-dev
+            mkdir -p "$TARGET/opt/include" "$TARGET/opt/lib/glib-2.0/include"
+            cp -a /tmp/glib-arm64-dev/usr/include/glib-2.0 "$TARGET/opt/include/"
+            cp -a /tmp/glib-arm64-dev/usr/include/gio-unix-2.0 "$TARGET/opt/include/" 2>/dev/null || true
+            cp -a /tmp/glib-arm64-dev/usr/lib/aarch64-linux-gnu/glib-2.0/include/glibconfig.h "$TARGET/opt/lib/glib-2.0/include/"
+            test -f "$TARGET/opt/include/glib-2.0/glib-object.h"
+            test -f "$TARGET/opt/lib/glib-2.0/include/glibconfig.h"
             apt-get download libgnutls28-dev
             GNUTLS_DEB="$(ls -1t libgnutls28-dev_*.deb | head -1)"
             rm -rf /tmp/gnutls-dev
