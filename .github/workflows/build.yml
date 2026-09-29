@@ -493,11 +493,10 @@ jobs:
             # Entware does not ship GLib development headers. Use the matching
             # AArch64 Debian development package only as a header/sysroot source;
             # no Debian libraries are linked into the target.
-            apt-get download libglib2.0-dev:arm64
-            GLIB_DEV_DEB="$(ls -1t libglib2.0-dev_*_arm64.deb | head -1)"
+            curl -fL --retry 5 https://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-dev_2.66.8-1+deb11u4_arm64.deb -o /tmp/libglib2.0-dev-arm64.deb
             rm -rf /tmp/glib-arm64-dev
             mkdir -p /tmp/glib-arm64-dev
-            dpkg-deb -x "$GLIB_DEV_DEB" /tmp/glib-arm64-dev
+            dpkg-deb -x /tmp/libglib2.0-dev-arm64.deb /tmp/glib-arm64-dev
             mkdir -p "$TARGET/opt/include" "$TARGET/opt/lib/glib-2.0/include"
             cp -a /tmp/glib-arm64-dev/usr/include/glib-2.0 "$TARGET/opt/include/"
             cp -a /tmp/glib-arm64-dev/usr/include/gio-unix-2.0 "$TARGET/opt/include/" 2>/dev/null || true
