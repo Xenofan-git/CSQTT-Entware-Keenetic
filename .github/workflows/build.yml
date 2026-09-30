@@ -499,6 +499,7 @@ jobs:
             dpkg-deb -x /tmp/libglib2.0-dev-arm64.deb /tmp/glib-arm64-dev
             mkdir -p "$TARGET/opt/include" "$TARGET/opt/lib/glib-2.0/include"
             cp -a /tmp/glib-arm64-dev/usr/include/glib-2.0 "$TARGET/opt/include/"
+            cp -a /tmp/glib-arm64-dev/usr/include/gio-2.0 "$TARGET/opt/include/"
             cp -a /tmp/glib-arm64-dev/usr/include/gio-unix-2.0 "$TARGET/opt/include/" 2>/dev/null || true
             cp -a /tmp/glib-arm64-dev/usr/lib/aarch64-linux-gnu/glib-2.0/include/glibconfig.h "$TARGET/opt/lib/glib-2.0/include/"
             test -f "$TARGET/opt/include/glib-2.0/glib-object.h"
