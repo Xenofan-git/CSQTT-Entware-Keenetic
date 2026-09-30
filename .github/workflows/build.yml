@@ -579,7 +579,7 @@ jobs:
           [properties]
           sys_root = '{target}'
           [built-in options]
-          c_args = ['-include','gio/gio.h','--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53','-isystem','{tc}/include','-isystem','{target}/usr/include','-isystem','{target}/opt/include']
+          c_args = ['-include','gio/gio.h','--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53','-isystem','{tc}/include','-isystem','{target}/usr/include','-isystem','{target}/opt/include','-isystem','{target}/opt/include/glib-2.0']
           cpp_args = ['-nostdinc++','--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0/aarch64-openwrt-linux-gnu','-isystem','{tc}/aarch64-openwrt-linux-gnu/include/c++/8.4.0/backward','-isystem','{tc}/include','-isystem','{target}/usr/include','-isystem','{target}/opt/include']
           c_link_args = ['--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53']
           cpp_link_args = ['--target=aarch64-openwrt-linux-gnu','--sysroot={target}','--gcc-toolchain={tc}','-B{tc}/bin','-mcpu=cortex-a53']
