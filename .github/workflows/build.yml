@@ -506,7 +506,7 @@ jobs:
             mkdir -p "$TARGET/opt/include/glib-2.0/glib"
             cp -a /tmp/glib-2.82.0/glib/*.h "$TARGET/opt/include/glib-2.0/glib/"
             cp -a /tmp/glib-2.82.0/gobject "$TARGET/opt/include/glib-2.0/"
-            cp -a /tmp/glib-2.82.0/gobject/glib-object.h "$TARGET/opt/include/glib-2.0/"
+            cp -a /tmp/glib-2.82.0/glib/glib-object.h "$TARGET/opt/include/glib-2.0/"
             cp -a /tmp/glib-2.82.0/gio "$TARGET/opt/include/glib-2.0/"
             cp -a /tmp/glib-2.82.0/gmodule "$TARGET/opt/include/glib-2.0/"
             # glibconfig.h is generated per target architecture; reuse the Debian
