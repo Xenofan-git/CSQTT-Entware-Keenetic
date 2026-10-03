@@ -1,89 +1,205 @@
 #include <wpe/webkit.h>
-#include <jsc/jsc.h>
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/stat.h>
+
+#define VK_AUTH_URL "https://oauth.vk.ru/authorize?client_id=7793118&scope=1073737727&redirect_uri=https%3A%2F%2Foauth.vk.ru%2Fblank.html&display=page&response_type=token&revoke=1&v=5.199"
+#define POLL_MS 500
+#define TIMEOUT_SECONDS 300
 
 typedef struct {
     GMainLoop *loop;
     WebKitWebView *view;
+    guint poll_id;
     guint timeout_id;
+    guint silent_restarts;
+    gboolean finished;
 } App;
+
+static gchar *la_dir(const gchar *suffix)
+{
+    return g_build_filename(g_get_home_dir(), ".la-lune", suffix, NULL);
+}
+
+static gchar *param_from_query(const gchar *query, const gchar *key)
+{
+    if (!query) return NULL;
+    gchar **parts = g_strsplit(query, "&", -1);
+    gchar *out = NULL;
+    for (gsize i = 0; parts[i]; i++) {
+        gchar **kv = g_strsplit(parts[i], "=", 2);
+        if (kv[0] && kv[1] && g_strcmp0(kv[0], key) == 0) {
+            out = g_uri_unescape_string(kv[1], NULL);
+            g_strfreev(kv);
+            break;
+        }
+        g_strfreev(kv);
+    }
+    g_strfreev(parts);
+    return out;
+}
+
+static gboolean blank_redirect(const gchar *uri)
+{
+    if (!uri) return FALSE;
+    GUri *u = g_uri_parse(uri, G_URI_FLAGS_NONE, NULL);
+    if (!u) return FALSE;
+    gboolean ok =
+        (g_strcmp0(g_uri_get_host(u), "oauth.vk.ru") == 0 ||
+         g_strcmp0(g_uri_get_host(u), "oauth.vk.com") == 0) &&
+        g_strcmp0(g_uri_get_path(u), "/blank.html") == 0;
+    g_uri_unref(u);
+    return ok;
+}
+
+static gchar *access_token_from_uri(const gchar *uri)
+{
+    if (!blank_redirect(uri)) return NULL;
+    const gchar *hash = strchr(uri, '#');
+    if (!hash) return NULL;
+    return param_from_query(hash + 1, "access_token");
+}
+
+static gboolean silent_token_from_uri(const gchar *uri)
+{
+    const gchar *hash = uri ? strchr(uri, '#') : NULL;
+    if (!hash) return FALSE;
+    gchar *fragment = g_uri_unescape_string(hash + 1, NULL);
+    if (!fragment) return FALSE;
+    gboolean result =
+        strstr(fragment, "payload=") != NULL &&
+        strstr(fragment, "silent_token") != NULL;
+    g_free(fragment);
+    return result;
+}
+
+static void stop_app(App *app, gboolean success)
+{
+    if (app->finished) return;
+    app->finished = TRUE;
+    if (app->poll_id) g_source_remove(app->poll_id);
+    if (app->timeout_id) g_source_remove(app->timeout_id);
+    if (!success)
+        g_printerr("wpe-auth: VK token was not obtained\n");
+    g_main_loop_quit(app->loop);
+}
 
 static gboolean timeout_cb(gpointer data)
 {
-    App *app = data;
-    g_printerr("wpe-auth: timeout waiting for page result\n");
-    g_main_loop_quit(app->loop);
+    stop_app(data, FALSE);
     return G_SOURCE_REMOVE;
 }
 
-static void javascript_finished(GObject *object, GAsyncResult *result, gpointer user_data)
+static gboolean restart_oauth(gpointer data)
 {
-    App *app = user_data;
-    GError *error = NULL;
-    JSCValue *value;
-    gchar *text;
+    App *app = data;
+    if (!app->finished)
+        webkit_web_view_load_uri(app->view, VK_AUTH_URL);
+    return G_SOURCE_REMOVE;
+}
 
-    value = webkit_web_view_evaluate_javascript_finish(
-        WEBKIT_WEB_VIEW(object), result, &error);
+static gboolean poll_cb(gpointer data)
+{
+    App *app = data;
+    const gchar *uri = webkit_web_view_get_uri(app->view);
+    if (!uri) return G_SOURCE_CONTINUE;
 
-    if (!value) {
-        g_printerr("wpe-auth: JavaScript evaluation failed: %s\n",
-                   error ? error->message : "unknown error");
-        g_clear_error(&error);
-        g_main_loop_quit(app->loop);
-        return;
+    gchar *token = access_token_from_uri(uri);
+    if (token && *token) {
+        gchar *dir = la_dir("");
+        gchar *path = la_dir("token.json");
+        g_mkdir_with_parents(dir, 0700);
+
+        GDateTime *now = g_date_time_new_now_utc();
+        gchar *saved_at = g_date_time_format(now, "%Y-%m-%dT%H:%M:%SZ");
+        gchar *escaped = g_strescape(token, NULL);
+        gchar *json = g_strdup_printf(
+            "{\n  \\"Token\\": \\"%s\\",\n  \\"SavedAt\\": \\"%s\\"\n}\n",
+            escaped, saved_at);
+
+        FILE *fp = fopen(path, "w");
+        if (!fp) {
+            g_printerr("wpe-auth: cannot save %s: %s\n", path, g_strerror(errno));
+            stop_app(app, FALSE);
+        } else {
+            fchmod(fileno(fp), 0600);
+            fputs(json, fp);
+            fclose(fp);
+            g_print("WPE_AUTH_STATUS=access_token_detected\n");
+            g_print("WPE_AUTH_TOKEN_FILE=%s\n", path);
+            stop_app(app, TRUE);
+        }
+
+        g_free(json);
+        g_free(escaped);
+        g_free(saved_at);
+        g_date_time_unref(now);
+        g_free(path);
+        g_free(dir);
+        g_free(token);
+        return G_SOURCE_REMOVE;
     }
 
-    text = jsc_value_to_string(value);
+    if (blank_redirect(uri) && silent_token_from_uri(uri)) {
+        if (app->silent_restarts >= 1) {
+            g_printerr("wpe-auth: silent_token remained after retry\n");
+            stop_app(app, FALSE);
+            return G_SOURCE_REMOVE;
+        }
 
-    /* Never print a real access token. This probe only verifies fragment access. */
-    if (text && strstr(text, "access_token="))
-        g_print("WPE_AUTH_PROBE=access_token_detected\n");
-    else
-        g_print("WPE_AUTH_PROBE=%s\n", text ? text : "");
+        app->silent_restarts++;
+        g_print("WPE_AUTH_STATUS=silent_token_retry\n");
+        webkit_web_view_load_uri(app->view, "https://vk.com/");
+        return G_SOURCE_CONTINUE;
+    }
 
-    g_free(text);
-    g_object_unref(value);
-    g_main_loop_quit(app->loop);
+    if (blank_redirect(uri) &&
+        (strstr(uri, "#error=") || strstr(uri, "?error="))) {
+        stop_app(app, FALSE);
+        return G_SOURCE_REMOVE;
+    }
+
+    return G_SOURCE_CONTINUE;
 }
 
 static void load_changed(WebKitWebView *view, WebKitLoadEvent event, gpointer data)
 {
     App *app = data;
+    if (event != WEBKIT_LOAD_FINISHED) return;
 
-    if (event != WEBKIT_LOAD_FINISHED)
-        return;
-
-    /*
-     * URL fragments are not sent to the HTTP server. Reading location.href
-     * from page JavaScript is therefore the important browser capability.
-     */
-    const char *script = "(function(){return window.location.href;})()";
-
-    webkit_web_view_evaluate_javascript(
-        view, script, -1, NULL, NULL, NULL, javascript_finished, app);
+    const gchar *uri = webkit_web_view_get_uri(view);
+    if (uri && g_str_has_prefix(uri, "https://vk.com/") &&
+        app->silent_restarts > 0 && !app->finished)
+        g_timeout_add(2000, restart_oauth, app);
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
-    const char *uri = argc > 1 ? argv[1] : "https://wpewebkit.org/";
-    const char *platform = g_getenv("WPE_PLATFORM");
-
-    if (!platform || !*platform)
+    if (!g_getenv("WPE_PLATFORM"))
         g_setenv("WPE_PLATFORM", "headless", TRUE);
 
-    App app = {0};
-    app.loop = g_main_loop_new(NULL, FALSE);
+    gchar *data_dir = la_dir("vk-token-fetcher/data");
+    gchar *cache_dir = la_dir("vk-token-fetcher/cache");
+    gchar *profile_dir = la_dir("vk-token-fetcher");
+
+    g_mkdir_with_parents(data_dir, 0700);
+    g_mkdir_with_parents(cache_dir, 0700);
+
+    WebKitNetworkSession *session =
+        webkit_network_session_new(data_dir, cache_dir);
 
     WebKitSettings *settings = webkit_settings_new();
     webkit_settings_set_enable_javascript(settings, TRUE);
     webkit_settings_set_enable_webgl(settings, FALSE);
     webkit_settings_set_enable_media_stream(settings, FALSE);
 
+    App app = {0};
+    app.loop = g_main_loop_new(NULL, FALSE);
     app.view = WEBKIT_WEB_VIEW(g_object_new(
         WEBKIT_TYPE_WEB_VIEW,
+        "network-session", session,
         "settings", settings,
         NULL));
 
@@ -91,17 +207,20 @@ int main(int argc, char **argv)
                      G_CALLBACK(load_changed), &app);
 
     g_print("wpe-auth: WPE_PLATFORM=%s\n", g_getenv("WPE_PLATFORM"));
-    g_print("wpe-auth: loading %s\n", uri);
+    g_print("wpe-auth: persistent profile=%s\n", profile_dir);
+    g_print("wpe-auth: LaLune VK OAuth flow started\n");
 
-    app.timeout_id = g_timeout_add_seconds(60, timeout_cb, &app);
-    webkit_web_view_load_uri(app.view, uri);
-
+    app.poll_id = g_timeout_add(POLL_MS, poll_cb, &app);
+    app.timeout_id = g_timeout_add_seconds(TIMEOUT_SECONDS, timeout_cb, &app);
+    webkit_web_view_load_uri(app.view, VK_AUTH_URL);
     g_main_loop_run(app.loop);
 
-    if (app.timeout_id)
-        g_source_remove(app.timeout_id);
     g_clear_object(&app.view);
     g_clear_object(&settings);
+    g_clear_object(&session);
     g_main_loop_unref(app.loop);
-    return 0;
+    g_free(data_dir);
+    g_free(cache_dir);
+    g_free(profile_dir);
+    return app.finished ? 0 : 1;
 }
