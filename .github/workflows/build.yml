@@ -511,7 +511,7 @@ jobs:
             cp -a /tmp/glib-2.82.0/gmodule "$TARGET/opt/include/glib-2.0/"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 versions-macros /tmp/glib-2.82.0/glib/gversionmacros.h.in "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
-            python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros /tmp/glib-2.82.0/glib/glib-visibility.h.in "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
+            python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GLIB "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             # glibconfig.h is generated per target architecture; reuse the Debian
             # arm64 development package only for this generated configuration header.
