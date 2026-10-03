@@ -116,7 +116,7 @@ static gboolean poll_cb(gpointer data)
         gchar *saved_at = g_date_time_format(now, "%Y-%m-%dT%H:%M:%SZ");
         gchar *escaped = g_strescape(token, NULL);
         gchar *json = g_strdup_printf(
-            "{\n  \\"Token\\": \\"%s\\",\n  \\"SavedAt\\": \\"%s\\"\n}\n",
+            "{\n  \"Token\": \"%s\",\n  \"SavedAt\": \"%s\"\n}\n",
             escaped, saved_at);
 
         FILE *fp = fopen(path, "w");
