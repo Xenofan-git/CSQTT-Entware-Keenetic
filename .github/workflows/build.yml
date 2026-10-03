@@ -514,6 +514,12 @@ jobs:
             test -f "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GLIB "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
+            python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GOBJECT "$TARGET/opt/include/glib-2.0/gobject/gobject-visibility.h"
+            test -f "$TARGET/opt/include/glib-2.0/gobject/gobject-visibility.h"
+            python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GIO "$TARGET/opt/include/glib-2.0/gio/gio-visibility.h"
+            test -f "$TARGET/opt/include/glib-2.0/gio/gio-visibility.h"
+            python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GMODULE "$TARGET/opt/include/glib-2.0/gmodule/gmodule-visibility.h"
+            test -f "$TARGET/opt/include/glib-2.0/gmodule/gmodule-visibility.h"
             # glibconfig.h is generated per target architecture; reuse the Debian
             # arm64 development package only for this generated configuration header.
             curl -fL --retry 5 https://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-dev_2.66.8-1+deb11u4_arm64.deb -o /tmp/libglib2.0-dev-arm64.deb
