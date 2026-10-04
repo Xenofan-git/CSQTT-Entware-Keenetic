@@ -512,6 +512,10 @@ jobs:
             cp -a /tmp/glib-2.82.0/gmodule "$TARGET/opt/include/glib-2.0/"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 versions-macros /tmp/glib-2.82.0/glib/gversionmacros.h.in "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
+            # glib-object.h includes this generated GObject enum header; Entware does not ship it.
+            # Generate it from the matching GLib 2.82.0 template/header set before the WPE probe.
+            python3 /usr/local/bin/glib-mkenums --template /tmp/glib-2.82.0/gobject/glib-enumtypes.h.template /tmp/glib-2.82.0/glib/gunicode.h > "$TARGET/opt/include/glib-2.0/gobject/glib-enumtypes.h"
+            test -s "$TARGET/opt/include/glib-2.0/gobject/glib-enumtypes.h"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GLIB "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GOBJECT "$TARGET/opt/include/glib-2.0/gobject/gobject-visibility.h"
