@@ -512,10 +512,16 @@ jobs:
             cp -a /tmp/glib-2.82.0/gmodule "$TARGET/opt/include/glib-2.0/"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 versions-macros /tmp/glib-2.82.0/glib/gversionmacros.h.in "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/gversionmacros.h"
-            # glib-object.h includes this generated GObject enum header; Entware does not ship it.
-            # Generate it from the matching GLib 2.82.0 template/header set before the WPE probe.
+            # Generate the GObject enum header exactly as GLib 2.82.0 does.
             python3 /usr/local/bin/glib-mkenums --template /tmp/glib-2.82.0/gobject/glib-enumtypes.h.template /tmp/glib-2.82.0/glib/gunicode.h > "$TARGET/opt/include/glib-2.0/gobject/glib-enumtypes.h"
             test -s "$TARGET/opt/include/glib-2.0/gobject/glib-enumtypes.h"
+            # GIO's public gio.h also requires its generated enum-types header. Generate it
+            # from the same public-header set used by GLib's gio/meson.build.
+            GIO_HEADERS="$(find /tmp/glib-2.82.0/gio -maxdepth 1 -type f -name '*.h' ! -name '*-private.h' ! -name 'gnetworking.h' -print | sort | tr '\\n' ' ')"
+            test -n "$GIO_HEADERS"
+            # shellcheck disable=SC2086
+            python3 /usr/local/bin/glib-mkenums --template /tmp/glib-2.82.0/gio/gioenumtypes.h.template $GIO_HEADERS > "$TARGET/opt/include/glib-2.0/gio/gioenumtypes.h"
+            test -s "$TARGET/opt/include/glib-2.0/gio/gioenumtypes.h"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GLIB "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             test -f "$TARGET/opt/include/glib-2.0/glib/glib-visibility.h"
             python3 /tmp/glib-2.82.0/tools/gen-visibility-macros.py 2.82.0 visibility-macros GOBJECT "$TARGET/opt/include/glib-2.0/gobject/gobject-visibility.h"
