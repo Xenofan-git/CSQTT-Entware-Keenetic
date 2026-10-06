@@ -583,6 +583,9 @@ jobs:
             cp "$PSL_HDR" "$TARGET/opt/include/libpsl.h"
             printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libpsl' 'Description: Public Suffix List library' 'Version: 0.21.5' 'Libs: -L/opt/lib -lpsl' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libpsl.pc"
           fi
+          PSL_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libpsl.so.*' -type f -print -quit)"
+          test -n "$PSL_SO"
+          ln -sf "$(basename "$PSL_SO")" "$TARGET/opt/lib/libpsl.so"
           if [ ! -f "$TARGET/opt/lib/pkgconfig/sqlite3.pc" ]; then
             curl -fL --retry 5 https://www.sqlite.org/2024/sqlite-amalgamation-3450300.zip -o /tmp/sqlite.zip
             rm -rf /tmp/sqlite-amalgamation
@@ -609,7 +612,9 @@ jobs:
           test -n "$NGHTTP_SO"
           ln -sf "$(basename "$NGHTTP_SO")" "$TARGET/opt/lib/libnghttp2.so"
           printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libnghttp2' 'Description: HTTP/2 protocol library' 'Version: 1.64.0' 'Libs: -L/opt/lib -lnghttp2' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libnghttp2.pc"
-          ln -sf libpcre2-8.so.0.12.0 "$TARGET/opt/lib/libpcre2-8.so"
+          PCRE2_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libpcre2-8.so.*' -type f -print -quit)"
+          test -n "$PCRE2_SO"
+          ln -sf "$(basename "$PCRE2_SO")" "$TARGET/opt/lib/libpcre2-8.so"
           # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 with its
           # own Meson source tree so this block is independent of temporary paths.
           cat > /tmp/build_libsoup.py <<'PY'
