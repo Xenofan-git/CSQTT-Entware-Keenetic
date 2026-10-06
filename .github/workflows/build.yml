@@ -589,6 +589,14 @@ jobs:
             cp "$SQLITE_SRC" "$TARGET/opt/include/sqlite3.h"
             printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: sqlite3' 'Description: SQLite database engine' 'Version: 3.45.3' 'Libs: -L/opt/lib -lsqlite3' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/sqlite3.pc"
           fi
+          # Entware ships libnghttp2 runtime-only. libsoup also needs the public nghttp2 headers.
+          if [ ! -d "$TARGET/opt/include/nghttp2" ]; then
+            curl -fL --retry 5 https://github.com/nghttp2/nghttp2/releases/download/v1.64.0/nghttp2-1.64.0.tar.xz -o /tmp/nghttp2.tar.xz
+            rm -rf /tmp/nghttp2-src && mkdir -p /tmp/nghttp2-src
+            tar -xf /tmp/nghttp2.tar.xz -C /tmp/nghttp2-src --strip-components=1
+            cp -a /tmp/nghttp2-src/lib/includes/nghttp2 "$TARGET/opt/include/"
+          fi
+          test -f "$TARGET/opt/include/nghttp2/nghttp2.h"
           if [ ! -f "$TARGET/opt/lib/pkgconfig/libnghttp2.pc" ]; then
             printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libnghttp2' 'Description: HTTP/2 protocol library' 'Version: 1.61.0' 'Libs: -L/opt/lib -lnghttp2' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libnghttp2.pc"
           fi
