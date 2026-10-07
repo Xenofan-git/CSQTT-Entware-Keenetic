@@ -615,6 +615,9 @@ jobs:
           PCRE2_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libpcre2-8.so.*' -type f -print -quit)"
           test -n "$PCRE2_SO"
           ln -sf "$(basename "$PCRE2_SO")" "$TARGET/opt/lib/libpcre2-8.so"
+          TASN1_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libtasn1.so.*' -type f -print -quit)"
+          test -n "$TASN1_SO"
+          ln -sf "$(basename "$TASN1_SO")" "$TARGET/opt/lib/libtasn1.so"
           # Entware's libsoup3 package is runtime-only. Build libsoup 3.0.8 with its
           # own Meson source tree so this block is independent of temporary paths.
           cat > /tmp/build_libsoup.py <<'PY'
