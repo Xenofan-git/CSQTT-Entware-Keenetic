@@ -363,6 +363,19 @@ jobs:
           s=p.read_text()
           if "DRM_FORMAT_XRGB8888 0x34325258U" not in s:
               p.write_text("#ifndef DRM_FORMAT_XRGB8888\n#define DRM_FORMAT_XRGB8888 0x34325258U\n#endif\n"+s)
+          p=Path("wpewebkit-2.54.0/Source/cmake/FindXkbCommon.cmake")
+          p.write_text("""# xkbcommon is unavailable in Entware aarch64-k3.10.
+          # This WPE build is strictly headless with Wayland/X11 disabled.
+          # Keep the FindPackage contract satisfied without probing a target
+          # xkbcommon installation.
+          set(XkbCommon_FOUND TRUE)
+          set(XkbCommon_VERSION "0.4.0")
+          set(XkbCommon_INCLUDE_DIRS "")
+          set(XkbCommon_LIBRARIES "")
+          if (NOT TARGET XkbCommon::XkbCommon)
+              add_library(XkbCommon::XkbCommon INTERFACE IMPORTED GLOBAL)
+          endif ()
+          """)
           p=Path("wpewebkit-2.54.0/Source/cmake/FindGLib.cmake")
           s=p.read_text()
           start=s.index("if (NOT GLib_VERSION AND EXISTS")
