@@ -370,6 +370,11 @@ jobs:
           s=p.read_text()
           if "DRM_FORMAT_XRGB8888 0x34325258U" not in s:
               p.write_text("#ifndef DRM_FORMAT_XRGB8888\n#define DRM_FORMAT_XRGB8888 0x34325258U\n#endif\n"+s)
+          # Headless auth does not need the WPE XKB keymap backend.
+          p=Path("wpewebkit-2.54.0/Source/WebKit/WPEPlatform/CMakeLists.txt")
+          lines=p.read_text().splitlines()
+          lines=[line for line in lines if "WPEKeymapXKB.cpp" not in line and "XkbCommon::XkbCommon" not in line]
+          p.write_text("\n".join(lines)+"\n")
           p=Path("wpewebkit-2.54.0/Source/cmake/FindXkbCommon.cmake")
           p.write_text("""# xkbcommon is unavailable in Entware aarch64-k3.10.
           # This WPE build is strictly headless with Wayland/X11 disabled.
@@ -523,6 +528,8 @@ jobs:
             dpkg-deb -x "$GLIB_TOOLS_DEB" /tmp/glib-host-tools
             install -m 0755 /tmp/glib-host-tools/usr/bin/glib-mkenums /usr/local/bin/glib-mkenums
             install -m 0755 /tmp/glib-host-tools/usr/bin/glib-genmarshal /usr/local/bin/glib-genmarshal
+            install -m 0755 /tmp/glib-host-tools/usr/bin/glib-compile-resources /usr/local/bin/glib-compile-resources
+            test -x /usr/local/bin/glib-compile-resources
             # Entware does not ship GLib development headers. Use the matching
             # AArch64 Debian development package only as a header/sysroot source;
             # no Debian libraries are linked into the target.
