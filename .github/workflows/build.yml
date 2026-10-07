@@ -43,6 +43,13 @@ jobs:
           s=p.read_text()
           if "DRM_FORMAT_XRGB8888 0x34325258U" not in s:
               p.write_text("#ifndef DRM_FORMAT_XRGB8888\n#define DRM_FORMAT_XRGB8888 0x34325258U\n#endif\n"+s)
+          # Headless auth does not need the WPE XKB keymap backend.
+          # Remove both the source and library dependency so the build does not
+          # require libxkbcommon at link time.
+          p=Path("wpewebkit-2.54.0/Source/WebKit/WPEPlatform/CMakeLists.txt")
+          lines=p.read_text().splitlines()
+          lines=[line for line in lines if "WPEKeymapXKB.cpp" not in line and "XkbCommon::XkbCommon" not in line]
+          p.write_text("\n".join(lines)+"\n")
           p=Path("wpewebkit-2.54.0/Source/cmake/FindXkbCommon.cmake")
           p.write_text("""# xkbcommon is unavailable in Entware aarch64-k3.10.
           # This WPE build is strictly headless with Wayland/X11 disabled.
