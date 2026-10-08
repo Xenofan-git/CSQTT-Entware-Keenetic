@@ -1,0 +1,103 @@
+#!/bin/sh
+# CSQTT-Keenetic Entware service.
+# The manager owns the web panel on TCP/2001 and launches the Rust client.
+
+BASE=/opt/etc/csqtt
+BIN="$BASE/CSQTT-Keenetic"
+CFG="$BASE/config.json"
+PIDFILE="$BASE/manager.pid"
+WD_PIDFILE="$BASE/watchdog.pid"
+LOG="$BASE/manager-live.log"
+WD="$BASE/watchdog.sh"
+WD_LOG="$BASE/watchdog.log"
+
+is_running() {
+    [ -f "$PIDFILE" ] || return 1
+    pid=`cat "$PIDFILE" 2>/dev/null`
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+start_manager() {
+    [ -x "$BIN" ] || { echo "CSQTT binary not found: $BIN"; return 1; }
+    [ -f "$CFG" ] || { echo "CSQTT config not found: $CFG"; return 1; }
+    if is_running; then return 0; fi
+
+    rm -f "$PIDFILE"
+    "$BIN" -config "$CFG" >>"$LOG" 2>&1 &
+    pid=$!
+    echo "$pid" >"$PIDFILE"
+    sleep 1
+    if ! kill -0 "$pid" 2>/dev/null; then
+        rm -f "$PIDFILE"
+        echo "CSQTT manager failed to start; see $LOG"
+        return 1
+    fi
+    echo "CSQTT manager started: PID $pid"
+}
+
+stop_manager() {
+    if is_running; then
+        pid=`cat "$PIDFILE"`
+        kill "$pid" 2>/dev/null || true
+        i=0
+        while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 20 ]; do
+            sleep 1
+            i=$((i+1))
+        done
+        kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+    killall client 2>/dev/null || true
+}
+
+start_watchdog() {
+    if [ -f "$WD_PIDFILE" ]; then
+        wpid=`cat "$WD_PIDFILE" 2>/dev/null`
+        if [ -n "$wpid" ] && kill -0 "$wpid" 2>/dev/null; then return 0; fi
+    fi
+    rm -f "$WD_PIDFILE"
+    "$WD" >>"$WD_LOG" 2>&1 &
+    echo $! >"$WD_PIDFILE"
+}
+
+stop_watchdog() {
+    if [ -f "$WD_PIDFILE" ]; then
+        wpid=`cat "$WD_PIDFILE" 2>/dev/null`
+        kill "$wpid" 2>/dev/null || true
+    fi
+    rm -f "$WD_PIDFILE"
+}
+
+case "$1" in
+    start)
+        start_manager || exit 1
+        start_watchdog
+        ;;
+    stop)
+        stop_watchdog
+        stop_manager
+        ;;
+    restart)
+        stop_watchdog
+        stop_manager
+        sleep 2
+        start_manager || exit 1
+        start_watchdog
+        ;;
+    status)
+        is_running && echo "CSQTT manager: running (PID `cat "$PIDFILE"`)" || echo "CSQTT manager: stopped"
+        if [ -f "$WD_PIDFILE" ] && kill -0 `cat "$WD_PIDFILE" 2>/dev/null` 2>/dev/null; then
+            echo "CSQTT watchdog: running (PID `cat "$WD_PIDFILE"`)"
+        else
+            echo "CSQTT watchdog: stopped"
+        fi
+        if command -v curl >/dev/null 2>&1; then
+            code=`curl -sS -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:2001/ 2>/dev/null || echo 000`
+            echo "Web panel :2001: HTTP $code"
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 2
+        ;;
+esac
