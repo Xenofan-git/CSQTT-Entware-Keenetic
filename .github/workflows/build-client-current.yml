@@ -1,0 +1,155 @@
+name: Build CSQTT current client ARM64
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-client-current.yml'
+      - 'patches/csqтt-core/rust-client/tun.rs'
+      - 'scripts/add-dispatch-diagnostic.py'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout manager repo
+        uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm cmake clang
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          targets: aarch64-unknown-linux-musl
+
+      - name: Install Zig and cargo-zigbuild
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --user ziglang
+          ZIG_BIN="$(python3 -c 'import os, ziglang; print(os.path.join(os.path.dirname(ziglang.__file__), "zig"))')"
+          echo "$(dirname "$ZIG_BIN")" >> "$GITHUB_PATH"
+          cargo install cargo-zigbuild --locked
+
+      - name: Download current CSQTT source
+        run: |
+          git clone --depth 1 --branch main https://github.com/amurcanov/csqtt.git csqtt-current
+          grep -q 'ScmRights' csqtt-current/rust-client/tun.rs
+          grep -q 'FrameHeader::decode' csqtt-current/rust-client/dispatcher.rs
+
+      - name: Add CSQ5 downlink frame compatibility
+        working-directory: csqtt-current
+        run: |
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          p = Path("shared/flow_frame.rs")
+          s = p.read_text()
+          start = s.index("    pub fn decode(packet: &[u8]) -> Option<(Self, &[u8])> {")
+          end = s.index("\n    }", start) + len("\n    }")
+          new = base64.b64decode("ICAgIHB1YiBmbiBkZWNvZGUocGFja2V0OiAmW3U4XSkgLT4gT3B0aW9uPChTZWxmLCAmW3U4XSk+IHsKICAgICAgICBpZiBwYWNrZXQubGVuKCkgPCBGUkFNRV9MRU4gewogICAgICAgICAgICByZXR1cm4gTm9uZTsKICAgICAgICB9CiAgICAgICAgaWYgcGFja2V0Wy4uNF0gPT0gRlJBTUVfTUFHSUMgewogICAgICAgICAgICByZXR1cm4gU29tZSgoCiAgICAgICAgICAgICAgICBTZWxmIHsKICAgICAgICAgICAgICAgICAgICBzZW5kZXJfaWQ6IHU2NDo6ZnJvbV9iZV9ieXRlcyhwYWNrZXRbNC4uMTJdLnRyeV9pbnRvKCkub2soKT8pLAogICAgICAgICAgICAgICAgICAgIGZsb3dfaWQ6IHU2NDo6ZnJvbV9iZV9ieXRlcyhwYWNrZXRbMTIuLjIwXS50cnlfaW50bygpLm9rKCk/KSwKICAgICAgICAgICAgICAgICAgICBzZXF1ZW5jZTogdTMyOjpmcm9tX2JlX2J5dGVzKHBhY2tldFsyMC4uMjRdLnRyeV9pbnRvKCkub2soKT8pLAogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICZwYWNrZXRbRlJBTUVfTEVOLi5dLAogICAgICAgICAgICApKTsKICAgICAgICB9CiAgICAgICAgLy8gQ1NRVFQgMi4yLnggV0lSRS0zIHNlcnZlciBmcmFtaW5nOiBDU1E1ICsgdmVyc2lvbih1MzIgTEUpICsKICAgICAgICAvLyBzZW5kZXJfaWQodTMyKSArIGZsb3dfaWQodTY0KSArIHNlcXVlbmNlKHUzMikuCiAgICAgICAgY29uc3QgQ1NRNV9NQUdJQzogW3U4OyA0XSA9IFsweGM1LCBiJ1MnLCBiJ1EnLCBiJzUnXTsKICAgICAgICBpZiBwYWNrZXRbLi40XSA9PSBDU1E1X01BR0lDCiAgICAgICAgICAgICYmIHUzMjo6ZnJvbV9sZV9ieXRlcyhwYWNrZXRbNC4uOF0udHJ5X2ludG8oKS5vaygpPykgPT0gMQogICAgICAgIHsKICAgICAgICAgICAgcmV0dXJuIFNvbWUoKAogICAgICAgICAgICAgICAgU2VsZiB7CiAgICAgICAgICAgICAgICAgICAgc2VuZGVyX2lkOiB1NjQ6OmZyb20odTMyOjpmcm9tX2JlX2J5dGVzKHBhY2tldFs4Li4xMl0udHJ5X2ludG8oKS5vaygpPykpLAogICAgICAgICAgICAgICAgICAgIGZsb3dfaWQ6IHU2NDo6ZnJvbV9iZV9ieXRlcyhwYWNrZXRbMTIuLjIwXS50cnlfaW50bygpLm9rKCk/KSwKICAgICAgICAgICAgICAgICAgICBzZXF1ZW5jZTogdTMyOjpmcm9tX2JlX2J5dGVzKHBhY2tldFsyMC4uMjRdLnRyeV9pbnRvKCkub2soKT8pLAogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICZwYWNrZXRbRlJBTUVfTEVOLi5dLAogICAgICAgICAgICApKTsKICAgICAgICB9CiAgICAgICAgTm9uZQogICAgfQ==").decode()
+          p.write_text(s[:start] + new + s[end:])
+          PY
+
+      - name: Apply TUN FD receiver patch and diagnostics
+        run: |
+          set -euo pipefail
+          cp 'patches/csqтt-core/rust-client/tun.rs' csqtt-current/rust-client/tun.rs
+          grep -q '\[TUN FD\] ACK' csqtt-current/rust-client/tun.rs
+          python3 scripts/add-dispatch-diagnostic.py
+          grep -q '\[TUN DEBUG\] read_tun task started' csqtt-current/rust-client/dispatcher.rs
+          python3 scripts/add-runtime-diagnostic.py
+          grep -q '\[TUN FD\] received fd=' csqtt-current/rust-client/tun.rs
+          grep -q '\[PATH DEBUG\] writer sent=' csqtt-current/rust-client/session.rs
+
+
+      - name: Patch musl UDP and ARM64 compatibility
+        working-directory: csqtt-current/rust-client
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Cargo.toml')
+          s = p.read_text()
+          dep = 'zstd-sys = { version = "2.0.16", features = ["no_asm"] }'
+          if dep not in s:
+              marker = 'getrandom = "0.4"\n'
+              if marker in s:
+                  p.write_text(s.replace(marker, marker + dep + '\n', 1))
+          PY
+          sed -i 's/count: libc::c_int/count: libc::c_uint/g' udp_batch.rs
+          sed -i 's/libc::recvmmsg(fd, messages, count, flags, timeout)/libc::recvmmsg(fd, messages, count as libc::c_uint, flags as libc::c_uint, timeout)/g' udp_batch.rs
+          sed -i 's/libc::sendmmsg(fd, messages, count, flags)/libc::sendmmsg(fd, messages, count as libc::c_uint, flags as libc::c_uint)/g' udp_batch.rs
+          perl -0pi -e 's{    fn mmsg_header\(iovec: \*mut libc::iovec\) -> libc::mmsghdr \{.*?^    \}}{    fn mmsg_header(iovec: *mut libc::iovec) -> libc::mmsghdr {\n        let mut msg_hdr: libc::msghdr = unsafe { std::mem::zeroed() };\n        msg_hdr.msg_name = ptr::null_mut();\n        msg_hdr.msg_namelen = 0;\n        msg_hdr.msg_iov = iovec;\n        msg_hdr.msg_iovlen = 1;\n        msg_hdr.msg_control = ptr::null_mut();\n        msg_hdr.msg_controllen = 0;\n        msg_hdr.msg_flags = 0;\n        libc::mmsghdr { msg_hdr, msg_len: 0 }\n    }}ms' udp_batch.rs
+
+      - name: Build ARM64 client
+        working-directory: csqtt-current/rust-client
+        env:
+          AWS_LC_SYS_CMAKE_BUILDER: '0'
+          AWS_LC_SYS_STATIC: '1'
+          AWS_LC_SYS_CFLAGS_aarch64_unknown_linux_musl: '-D__ARM_ARCH=8'
+          RUST_BACKTRACE: '1'
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/zig-cc-aarch64-musl" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          args=(); skip_next=0
+          for arg in "$@"; do
+            if [[ "$skip_next" -eq 1 ]]; then skip_next=0; continue; fi
+            case "$arg" in
+              --target|-target) skip_next=1; continue;;
+              --target=*|-target=*) continue;;
+              -Wl,--fix-cortex-a53-843419) continue;;
+              */rustlib/aarch64-unknown-linux-musl/lib/self-contained/crt1.o|*/rustlib/aarch64-unknown-linux-musl/lib/self-contained/crti.o|*/rustlib/aarch64-unknown-linux-musl/lib/self-contained/crtbegin.o|*/rustlib/aarch64-unknown-linux-musl/lib/self-contained/crtend.o|*/rustlib/aarch64-unknown-linux-musl/lib/self-contained/crtn.o) continue;;
+              *) args+=("$arg");;
+            esac
+          done
+          exec zig cc -target aarch64-linux-musl "${args[@]}"
+          EOF
+          chmod +x "$RUNNER_TEMP/zig-cc-aarch64-musl"
+          CC_aarch64_unknown_linux_musl="$RUNNER_TEMP/zig-cc-aarch64-musl" AR_aarch64_unknown_linux_musl='zig ar' AWS_LC_SYS_CC="$RUNNER_TEMP/zig-cc-aarch64-musl" AWS_LC_SYS_TARGET_CC="$RUNNER_TEMP/zig-cc-aarch64-musl" CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$RUNNER_TEMP/zig-cc-aarch64-musl" cargo zigbuild --release --target aarch64-unknown-linux-musl -vv
+          file target/aarch64-unknown-linux-musl/release/client
+          sha256sum target/aarch64-unknown-linux-musl/release/client
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp csqtt-current/rust-client/target/aarch64-unknown-linux-musl/release/client dist/client
+          chmod 755 dist/client
+          tar -C dist -czf CSQTT-client-current-aarch64-k3.10.tar.gz client
+          sha256sum dist/client CSQTT-client-current-aarch64-k3.10.tar.gz | tee SHA256SUMS
+
+      - name: Upload client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CSQTT-client-current-aarch64-k3.10
+          path: |
+            dist/client
+            CSQTT-client-current-aarch64-k3.10.tar.gz
+            SHA256SUMS
+
+      - name: Publish client to temporary raw branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          cp dist/client /tmp/csqtt-client
+          cp SHA256SUMS /tmp/CSQTT-SHA256SUMS
+          git checkout --orphan client-dist
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/csqtt-client ./client
+          cp /tmp/CSQTT-SHA256SUMS ./SHA256SUMS
+          git add client SHA256SUMS
+          git commit -m "Publish diagnostic CSQTT ARM64 client"
+          git push --force origin client-dist
