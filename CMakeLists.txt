@@ -10,3 +10,5 @@ pkg_check_modules(WPE_PLATFORM REQUIRED IMPORTED_TARGET wpe-platform-2.0)
 
 add_executable(wpe-auth src/main.c)
 target_link_libraries(wpe-auth PRIVATE PkgConfig::WPE PkgConfig::WPE_PLATFORM)
+
+# WPE auth probe used by the CSQTT Entware integration.
