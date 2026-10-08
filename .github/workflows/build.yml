@@ -2,7 +2,7 @@ name: Build WPE Auth Entware
 
 on:
   push:
-    branches: [main]
+    branches: [main, arm64-entware-unified]
     paths:
       - "src/**"
       - "CMakeLists.txt"
@@ -180,16 +180,20 @@ jobs:
             DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libtinfo5
           fi
 
-      - name: Install portable Clang 18 for ARM64 build
+      - name: Install modern ARM64 GCC toolchain
         run: |
           set -eux
-          mkdir -p "$HOME/llvm"
-          curl -fL --retry 5 https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz -o /tmp/llvm.tar.xz
-          tar -xJf /tmp/llvm.tar.xz -C "$HOME/llvm" --strip-components=1
-          echo "$HOME/llvm/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/llvm/bin:$PATH"
-          clang --version
-          clang++ --version
+          rm -rf "$HOME/gcc-aarch64"
+          mkdir -p "$HOME/gcc-aarch64"
+          curl -fL --retry 5 https://github.com/prepkg/gcc-toolchain/releases/latest/download/gcc-aarch64-linux-gnu.tar.gz -o /tmp/gcc-aarch64.tar.gz
+          tar -xzf /tmp/gcc-aarch64.tar.gz -C "$HOME/gcc-aarch64" --strip-components=1
+          GCC="$HOME/gcc-aarch64/bin/aarch64-linux-gnu-gcc"
+          GXX="$HOME/gcc-aarch64/bin/aarch64-linux-gnu-g++"
+          test -x "$GCC"
+          test -x "$GXX"
+          "$GCC" --version
+          "$GXX" --version
+          echo "$HOME/gcc-aarch64/bin" >> "$GITHUB_PATH"
 
       - name: Inspect Entware target sysroot
         working-directory: /home/me/Entware
@@ -427,21 +431,23 @@ jobs:
           cat > entware-aarch64.cmake <<EOF
           set(CMAKE_SYSTEM_NAME Linux)
           set(CMAKE_SYSTEM_PROCESSOR aarch64)
-          set(CMAKE_C_COMPILER $HOME/llvm/bin/clang)
-          set(CMAKE_CXX_COMPILER $HOME/llvm/bin/clang++)
-          set(CMAKE_C_COMPILER_TARGET aarch64-openwrt-linux-gnu)
-          set(CMAKE_CXX_COMPILER_TARGET aarch64-openwrt-linux-gnu)
-          set(CMAKE_AR $TC/bin/aarch64-openwrt-linux-gnu-ar)
-          set(CMAKE_RANLIB $TC/bin/aarch64-openwrt-linux-gnu-ranlib)
-          set(CMAKE_STRIP $TC/bin/aarch64-openwrt-linux-gnu-strip)
+          GCCROOT=$HOME/gcc-aarch64
+          set(CMAKE_C_COMPILER $GCCROOT/bin/aarch64-linux-gnu-gcc)
+          set(CMAKE_CXX_COMPILER $GCCROOT/bin/aarch64-linux-gnu-g++)
+          set(CMAKE_AR $GCCROOT/bin/aarch64-linux-gnu-ar)
+          set(CMAKE_RANLIB $GCCROOT/bin/aarch64-linux-gnu-ranlib)
+          set(CMAKE_STRIP $GCCROOT/bin/aarch64-linux-gnu-strip)
           set(CMAKE_SYSROOT $TARGET)
-          set(CMAKE_FIND_ROOT_PATH $TARGET $TC)
+          set(CMAKE_FIND_ROOT_PATH $TARGET)
           set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
           set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
           set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-          set(CMAKE_C_FLAGS "--target=aarch64-openwrt-linux-gnu --sysroot=$TARGET --gcc-toolchain=$TC -B$TC/bin -mcpu=cortex-a53 -isystem $TC/include -isystem $TARGET/usr/include -isystem $TARGET/opt/include -isystem $TARGET/opt/lib/glib-2.0/include")
-          set(CMAKE_CXX_FLAGS "-nostdinc++ --target=aarch64-openwrt-linux-gnu --sysroot=$TARGET --gcc-toolchain=$TC -B$TC/bin -mcpu=cortex-a53 -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0 -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0/aarch64-openwrt-linux-gnu -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0/backward -isystem $TC/lib64/gcc/aarch64-openwrt-linux-gnu/8.4.0/include -isystem $TC/lib64/gcc/aarch64-openwrt-linux-gnu/8.4.0/include-fixed -isystem $TC/include -isystem $TARGET/usr/include -isystem $TARGET/opt/include -isystem $TARGET/opt/lib/glib-2.0/include")
+          set(CMAKE_C_FLAGS "--sysroot=$TARGET -mcpu=cortex-a53 -isystem $TARGET/usr/include -isystem $TARGET/opt/include -isystem $TARGET/opt/lib/glib-2.0/include")
+          set(CMAKE_CXX_FLAGS "--sysroot=$TARGET -mcpu=cortex-a53 -isystem $TARGET/usr/include -isystem $TARGET/opt/include -isystem $TARGET/opt/lib/glib-2.0/include")
+          set(CMAKE_EXE_LINKER_FLAGS "--sysroot=$TARGET -Wl,--dynamic-linker=/opt/lib/ld-linux-aarch64.so.1 -Wl,-rpath,/opt/wpe/lib")
+          set(CMAKE_SHARED_LINKER_FLAGS "--sysroot=$TARGET -Wl,--dynamic-linker=/opt/lib/ld-linux-aarch64.so.1 -Wl,-rpath,/opt/wpe/lib")
+          set(CMAKE_INSTALL_RPATH "/opt/wpe/lib")
           EOF
           # Entware aarch64-k3.10 currently has no HarfBuzz package in Packages.gz.
           # Build a minimal HarfBuzz for the target instead of relying on a nonexistent
@@ -768,7 +774,7 @@ jobs:
       - name: Build and stage WPE ARM64
         run: |
           set -eux
-          export PATH="$HOME/cmake/bin:$HOME/llvm/bin:$PATH"
+          export PATH="$HOME/cmake/bin:$HOME/gcc-aarch64/bin:$PATH"
           cmake --build "$GITHUB_WORKSPACE/build-wpe-arm64" --parallel 2
           rm -rf "$GITHUB_WORKSPACE/arm64-root"
           DESTDIR="$GITHUB_WORKSPACE/arm64-root" cmake --install "$GITHUB_WORKSPACE/build-wpe-arm64"
@@ -778,6 +784,11 @@ jobs:
           set -eux
           mkdir -p dist/wpe-auth-arm64
           if [ -d arm64-root/opt ]; then cp -a arm64-root/opt/. dist/wpe-auth-arm64/; fi
+          mkdir -p dist/wpe-auth-arm64/lib
+          find "$HOME/gcc-aarch64" -type f -name 'libstdc++.so.6' -exec cp -L {} dist/wpe-auth-arm64/lib/ \; -quit
+          find "$HOME/gcc-aarch64" -type f -name 'libgcc_s.so.1' -exec cp -L {} dist/wpe-auth-arm64/lib/ \; -quit
+          test -s dist/wpe-auth-arm64/lib/libstdc++.so.6
+          test -s dist/wpe-auth-arm64/lib/libgcc_s.so.1
           cp README.md dist/wpe-auth-arm64/
           tar -C dist -czf wpe-auth-arm64.tar.gz wpe-auth-arm64
 
