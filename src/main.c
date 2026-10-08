@@ -18,9 +18,20 @@ typedef struct {
     gboolean finished;
 } App;
 
-static gchar *la_dir(const gchar *suffix)
+static gchar *auth_dir(const gchar *suffix)
 {
-    return g_build_filename(g_get_home_dir(), ".la-lune", suffix, NULL);
+    const gchar *root = g_getenv("CSQTT_WPE_HOME");
+    if (!root || !*root) root = g_build_filename(g_get_home_dir(), ".csqtt", NULL);
+    gchar *out = g_build_filename(root, suffix, NULL);
+    if (root != g_getenv("CSQTT_WPE_HOME")) g_free((gchar *)root);
+    return out;
+}
+
+static gchar *token_path(void)
+{
+    const gchar *path = g_getenv("CSQTT_WPE_TOKEN_FILE");
+    if (path && *path) return g_strdup(path);
+    return auth_dir("vk-token.json");
 }
 
 static gchar *param_from_query(const gchar *query, const gchar *key)
@@ -108,8 +119,8 @@ static gboolean poll_cb(gpointer data)
 
     gchar *token = access_token_from_uri(uri);
     if (token && *token) {
-        gchar *dir = la_dir("");
-        gchar *path = la_dir("token.json");
+        gchar *dir = auth_dir("");
+        gchar *path = token_path();
         g_mkdir_with_parents(dir, 0700);
 
         GDateTime *now = g_date_time_new_now_utc();
@@ -180,9 +191,9 @@ int main(void)
     if (!g_getenv("WPE_PLATFORM"))
         g_setenv("WPE_PLATFORM", "headless", TRUE);
 
-    gchar *data_dir = la_dir("vk-token-fetcher/data");
-    gchar *cache_dir = la_dir("vk-token-fetcher/cache");
-    gchar *profile_dir = la_dir("vk-token-fetcher");
+    gchar *profile_dir = auth_dir("profile");
+    gchar *data_dir = g_build_filename(profile_dir, "data", NULL);
+    gchar *cache_dir = g_build_filename(profile_dir, "cache", NULL);
 
     g_mkdir_with_parents(data_dir, 0700);
     g_mkdir_with_parents(cache_dir, 0700);
