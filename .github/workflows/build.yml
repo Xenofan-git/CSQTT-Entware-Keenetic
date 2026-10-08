@@ -56,11 +56,10 @@ jobs:
           # is fully programmatic and does not require keyboard input.
           p=Path("wpewebkit-2.54.0/Source/WebKit/WPEPlatform/wpe/WPEDisplay.cpp")
           s=p.read_text()
-          old="""        if (!priv->keymap)
-            priv->keymap = adoptGRef(wpe_keymap_xkb_new());"""
-          if old not in s:
+          import re
+          s,n=re.subn(r'\n[ \t]*if \(!priv->keymap\)\n[ \t]*priv->keymap = adoptGRef\(wpe_keymap_xkb_new\(\)\);', '', s, count=1)
+          if n != 1:
               raise SystemExit("WPEDisplay XKB fallback not found")
-          s=s.replace(old, "        // XKB backend intentionally omitted from this headless authentication build.")
           p.write_text(s)
           p=Path("wpewebkit-2.54.0/Source/cmake/FindXkbCommon.cmake")
           p.write_text("""# xkbcommon is unavailable in Entware aarch64-k3.10.
@@ -276,7 +275,7 @@ jobs:
                       k,v=line.split(': ',1); fields[k]=v
               if fields.get('Package') and fields.get('Filename'):
                   pkgs[fields['Package']]=fields
-          wanted={'glib2','glib2-dev','libfreetype','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','libnghttp2','libpsl','zlib','zlib-dev','gnutls','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
+          wanted={'glib2','glib2-dev','libfreetype','expat','libgcrypt','libgcrypt-dev','libgpg-error','libgpg-error-dev','libnghttp2','libpsl','zlib','zlib-dev','gnutls','icu','libsoup3','libtasn1','libxkbcommon','fontconfig','libxml2','libxml2-dev','libxslt','libsqlite3','libjpeg-turbo','libpng','libwebp'}
           selected=set()
           queue=list(wanted)
           while queue:
@@ -535,6 +534,10 @@ jobs:
           test -n "$FREETYPE_SO"
           ln -sf "$(basename "$FREETYPE_SO")" "$TARGET/opt/lib/libfreetype.so"
           test -e "$TARGET/opt/lib/libfreetype.so"
+          EXPAT_SO="$(find "$TARGET/opt/lib" -maxdepth 1 -name 'libexpat.so.*' -type f -print -quit)"
+          test -n "$EXPAT_SO"
+          ln -sf "$(basename "$EXPAT_SO")" "$TARGET/opt/lib/libexpat.so"
+          test -e "$TARGET/opt/lib/libexpat.so"
           printf '%s\n' 'prefix=/opt' 'libdir=/opt/lib' 'includedir=/opt/include' 'Name: libpcre2-8' 'Description: PCRE2 8-bit library' 'Version: 10.46' 'Libs: -L/opt/lib -lpcre2-8' 'Cflags: -I/opt/include' > "$TARGET/opt/lib/pkgconfig/libpcre2-8.pc"
           # Entware ships GnuTLS runtime-only. Provide its public development headers and linker metadata.
           # Fresh GitHub runner: bootstrap GnuTLS development files unconditionally.
