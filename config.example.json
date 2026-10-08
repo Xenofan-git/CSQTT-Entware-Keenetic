@@ -1,0 +1,19 @@
+{
+  "client": "/opt/etc/csqtt/client",
+  "peer": "72.56.81.131:46010",
+  "password": "YOUR_TUNNEL_PASSWORD",
+  "vk_access_token": "",
+  "vk_hashes": [],
+  "workers": 18,
+  "obfs": "audio",
+  "turn_transport": "udp",
+  "vk_hash_mode": "auto_api",
+  "vk_auth_mode": "vkcalls",
+  "fingerprint": "chrome",
+  "client_ids": "",
+  "device_id": "",
+  "generation": 0,
+  "salt": "",
+  "state_file": "/opt/etc/csqtt/state.json",
+  "captcha_mode": "auto"
+}
