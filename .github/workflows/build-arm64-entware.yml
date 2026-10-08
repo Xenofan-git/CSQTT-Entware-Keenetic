@@ -1,0 +1,55 @@
+name: Build CSQTT ARM64 Entware
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [arm64-entware-unified]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: true
+      - name: Build and test manager
+        run: |
+          set -euxo pipefail
+          gofmt -w main.go webpanel.go
+          go test ./...
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o CSQTT-Keenetic
+          file CSQTT-Keenetic
+          sha256sum CSQTT-Keenetic
+      - name: Validate Entware contract
+        run: |
+          set -euxo pipefail
+          grep -Fq '/opt/etc/csqtt/config.json' main.go
+          grep -Fq '/opt/etc/csqtt/client' main.go
+          grep -Fq 'CAPTCHA_RESULT|' main.go
+          grep -Fq '/api/captcha/state' webpanel.go
+          grep -Fq '/api/captcha/result' webpanel.go
+          grep -Fq 'WPE_AUTH_REPO' scripts/install-entware.sh
+      - name: Package Entware bundle
+        run: |
+          set -euxo pipefail
+          rm -rf dist
+          mkdir -p dist/opt/etc/csqtt dist/share/csqtt
+          install -m 0755 CSQTT-Keenetic dist/opt/etc/csqtt/CSQTT-Keenetic
+          install -m 0644 config.example.json dist/opt/etc/csqtt/config.example.json
+          install -m 0755 scripts/install-entware.sh dist/share/csqtt/install-entware.sh
+          install -m 0644 ARM64_INTEGRATION_MATRIX.md dist/share/csqtt/ARM64_INTEGRATION_MATRIX.md
+          sha256sum dist/opt/etc/csqtt/CSQTT-Keenetic > dist/share/csqtt/SHA256SUMS
+          tar -C dist -czf CSQTT-ARM64-Entware.tar.gz opt share
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CSQTT-ARM64-Entware
+          path: |
+            CSQTT-ARM64-Entware.tar.gz
+            CSQTT-Keenetic
