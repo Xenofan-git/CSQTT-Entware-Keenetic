@@ -1,4 +1,4 @@
-# CSQTT-Keenetic — Keenetic MVP 0.2.0
+# CSQTT-Entware-Keenetic — Keenetic ARM64/Entware
 
 Linux/Entware-менеджер для существующего нативного `csqtt-client` CSQTT 2.1.9.
 
@@ -58,11 +58,11 @@ Linux/Entware-менеджер для существующего нативно�
 
 ## Установка на Entware
 
-Скопировать новый `CSQTT-Keenetic` и существующий ARM64 `client` в `/opt/etc/csqtt/`.
+Скопировать новый `CSQTT-Entware-Keenetic` и существующий ARM64 `client` в `/opt/etc/csqtt/`.
 
 ```sh
 mkdir -p /opt/etc/csqtt
-chmod 755 /opt/etc/csqtt/CSQTT-Keenetic
+chmod 755 /opt/etc/csqtt/CSQTT-Entware-Keenetic
 chmod 755 /opt/etc/csqtt/client
 ```
 
@@ -82,7 +82,7 @@ ls -l /opt/sbin/ip /opt/bin/ip 2>/dev/null || true
 Запуск:
 
 ```sh
-/opt/etc/csqtt/CSQTT-Keenetic -config /opt/etc/csqtt/config.json
+/opt/etc/csqtt/CSQTT-Entware-Keenetic -config /opt/etc/csqtt/config.json
 ```
 
 При первом запуске менеджер сам создаст `/opt/etc/csqtt/state.json` с уникальными параметрами устройства.
@@ -111,4 +111,4 @@ GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w'
 LaLune UI, VPN routing, WireGuard и policy routing в эту ветку не импортируются.
 
 
-Локальный ARM64 binary `CSQTT-Keenetic` собран статически. На x86-хосте ARM64 test binary запускать нельзя, поэтому cross-`go test` не используется как runtime-тест.
+Локальный ARM64 binary `CSQTT-Entware-Keenetic` собран статически. На x86-хосте ARM64 test binary запускать нельзя, поэтому cross-`go test` не используется как runtime-тест.
