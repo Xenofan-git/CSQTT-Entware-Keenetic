@@ -455,7 +455,7 @@ jobs:
           set(CMAKE_RANLIB $TC/bin/aarch64-openwrt-linux-gnu-ranlib)
           set(CMAKE_STRIP $TC/bin/aarch64-openwrt-linux-gnu-strip)
           set(CMAKE_SYSROOT $TARGET)
-          set(CMAKE_MODULE_PATH "/tmp/libcxx-src/cmake/Modules" "/tmp/libcxxabi-src/cmake/Modules" ${CMAKE_MODULE_PATH})
+          set(CMAKE_MODULE_PATH "/tmp/libcxx-src/cmake/Modules" "/tmp/libcxxabi-src/cmake/Modules")
           set(CMAKE_C_FLAGS "--target=aarch64-openwrt-linux-gnu --sysroot=$TARGET --gcc-toolchain=$TC -B$TC/bin -mcpu=cortex-a53 -isystem $TC/include -isystem $TARGET/usr/include")
           set(CMAKE_CXX_FLAGS "--target=aarch64-openwrt-linux-gnu --sysroot=$TARGET --gcc-toolchain=$TC -B$TC/bin -mcpu=cortex-a53 -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0 -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0/aarch64-openwrt-linux-gnu -isystem $TC/aarch64-openwrt-linux-gnu/include/c++/8.4.0/backward -isystem $TC/lib64/gcc/aarch64-openwrt-linux-gnu/8.4.0/include -isystem $TC/lib64/gcc/aarch64-openwrt-linux-gnu/8.4.0/include-fixed -isystem $TC/include -isystem $TARGET/usr/include")
           set(CMAKE_EXE_LINKER_FLAGS "--target=aarch64-openwrt-linux-gnu --sysroot=$TARGET --gcc-toolchain=$TC -B$TC/bin -mcpu=cortex-a53")
